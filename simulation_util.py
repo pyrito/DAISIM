@@ -155,12 +155,11 @@ class Simulator:
         self.logger = logger
         self.logdir = logdir
         self.filename = os.path.join(logdir,
-                                     "CDPRate{" + str(self.cdpRate) + "}TXF{" + str(self.txf) + "}RUN{" + str(
-                                         self.run_index) + "}.txt")
+                                     f"CDPRate{self.cdpRate}TXF{self.txf}LQDRatio{self.rho}RUN{self.run_index}.txt")
         self.market = True
 
-        log("Simulation object created: CDP Rate %f, txFee %f, ETH Price %f, Sample Size %d" % (
-            cdpRate, txf, eth_price, sample_size), self.filename, self.logger)
+        log("Simulation object created: CDP Rate %f, txFee %f, LQD Ratio: %f, ETH Price %f, Sample Size %d" % (
+            cdpRate, txf, rho, eth_price, sample_size), self.filename, self.logger)
 
         for i in range(len(self.initial_distribution)):
             log("Investor %d Initial Assets: %s with Risk %f" % (

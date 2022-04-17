@@ -8,7 +8,7 @@ ASSETS = None
 RISK = None
 
 
-def run_on_thread(sample_size, assets, risk_params, cdp_rate, tx_fee, run_index, eth_price_per_day, days_per_config,
+def run_on_thread(sample_size, assets, risk_params, cdp_rate, tx_fee, lqd_ratio, run_index, eth_price_per_day, days_per_config,
                   logdir, logger):
     dai_price_history = []
     market_dai_history = []
@@ -19,7 +19,7 @@ def run_on_thread(sample_size, assets, risk_params, cdp_rate, tx_fee, run_index,
     cur_assets = assets
     cur_dai_price = 1
     for day in range(0, days_per_config):
-        s = Simulator(rho=2.5, cdpRate=cdp_rate, txf=tx_fee, run_index=run_index, eth_price=eth_price_per_day[day],
+        s = Simulator(rho=lqd_ratio, cdpRate=cdp_rate, txf=tx_fee, run_index=run_index, eth_price=eth_price_per_day[day],
                       sample_size=sample_size,
                       initial_distribution=cur_assets, risk_params=risk_params, logdir=logdir, logger=logger)
         s.dai_price = cur_dai_price
@@ -49,7 +49,7 @@ def generate_assets_and_risk(sample_size, test_type, runs):
     return assets_runs, risk_params
 
 
-def run_tests(sample_size, cdp_rates, tx_fees, runs, eth_price_per_day, days_per_config, test_type, logdir, logger,
+def run_tests(sample_size, cdp_rates, tx_fees, lqd_ratios, runs, eth_price_per_day, days_per_config, test_type, logdir, logger,
               sumfile):
     # Get number of CPUs
     cpus = mp.cpu_count()
@@ -66,10 +66,11 @@ def run_tests(sample_size, cdp_rates, tx_fees, runs, eth_price_per_day, days_per
 
     for tx_fee in tx_fees:
         for cdp_rate in cdp_rates:
-            for run in range(runs):
-                args.append(
-                    (sample_size, assets_runs[run], risk_params, cdp_rate, tx_fee, run, eth_price_per_day,
-                     days_per_config, logdir, logger))
+            for lqd_ratio in lqd_ratios:
+                for run in range(runs):
+                    args.append(
+                        (sample_size, assets_runs[run], risk_params, cdp_rate, tx_fee, lqd_ratio, run, eth_price_per_day,
+                        days_per_config, logdir, logger))
 
     results = pool.starmap(run_on_thread, args)
 
@@ -156,8 +157,9 @@ if __name__ == '__main__':
 
     cdp_config = config_lines[0].split(' ')
     txf_config = config_lines[1].split(' ')
+    lqd_ratio_config = config_lines[2].split(' ')
 
-    eth_price_per_day = list(map(int, config_lines[2].split(' ')))
+    eth_price_per_day = list(map(int, config_lines[3].split(' ')))
 
     # If this happens, then assets/risk have been provided in the config
     assets = []
@@ -166,9 +168,9 @@ if __name__ == '__main__':
         # Config overrides parameters set in CLI, currently this only supports 1 run.
         print("Config might override parameters set by CLI")
 
-        args.investors = int(config_lines[3])
+        args.investors = int(config_lines[4])
         args.runs = 1
-        for i in range(4, 4 + args.investors):
+        for i in range(5, 5 + args.investors):
             line_split = list(map(float, config_lines[i].split(' ')))
             assert (len(line_split) == 5)
 
@@ -185,6 +187,7 @@ if __name__ == '__main__':
 
     cdp_rates = [float(cdp_config[2]) * i for i in range(int(cdp_config[0]), int(cdp_config[1]))]
     tx_fees = [float(txf_config[2]) * i for i in range(int(txf_config[0]), int(txf_config[1]))]
+    lqd_ratios = [float(lqd_ratio_config[2]) + (0.1 * i) for i in range(int(lqd_ratio_config[0]), int(lqd_ratio_config[1]))]
 
     print("Input Parameters for Test")
     print("--investors", args.investors)
@@ -195,7 +198,7 @@ if __name__ == '__main__':
     print("--logidr", args.logdir)
     print("--config", args.config)
 
-    run_tests(args.investors, cdp_rates, tx_fees, args.runs, eth_price_per_day, args.days_per_config, args.type,
+    run_tests(args.investors, cdp_rates, tx_fees, lqd_ratios, args.runs, eth_price_per_day, args.days_per_config, args.type,
               args.logdir,
               args.log, sumfile)
     sumfile.close()
